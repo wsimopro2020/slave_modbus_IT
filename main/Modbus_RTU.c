@@ -141,7 +141,7 @@ void agregarCRC(uint8_t* out,uint8_t len)
 //Agrego el CRC AL FINAL
   out[l]=(uint8_t)crc;
   out[l+1]=(uint8_t)(crc >> 8);
-  printf("calculadon crc..\n");
+//  printf("calculadon crc..\n");
 
 }
 
@@ -267,7 +267,7 @@ void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE*
             {
                 for(uint16_t k=0,i=0, j=3 ; i<(cantidad_memorias*2);i++)    //recordemos las memorias van en el buffer primero byte hight
                 {
-                        printf("copiando memorias...\n");
+               //         printf("copiando memorias...\n");
                     response->buffer[j+i]=(uint8_t)(slave->MAPA_MEM.datos[offset+k]>>8);
                     response->buffer[j+(i+1)]=(uint8_t)(slave->MAPA_MEM.datos[offset+k]);
                     //     response->buffer[j+i]=(uint8_t)(memorias[offset+k]>>8);

@@ -20,7 +20,7 @@ static intr_handle_t handle_console;
 
 struct BUFFER req;
 
-
+bool it=true;
 
 
 
@@ -31,6 +31,12 @@ static void IRAM_ATTR uart_intr_handle(void *arg)
 {
 
 
+
+uart_disable_rx_intr(2);  //Deshabilito las interrupciones
+
+xQueueSendToBackFromISR(flag_request, &it,100/portTICK_RATE_MS);  //siempre mando it=true; para que se realiza este codigo en task no en interrupcion
+uart_clear_intr_status(2, UART_RXFIFO_FULL_INT_CLR|UART_RXFIFO_TOUT_INT_CLR);
+/*
  
   
   uint16_t rx_fifo_len, status;
@@ -50,7 +56,7 @@ static void IRAM_ATTR uart_intr_handle(void *arg)
   uart_clear_intr_status(2, UART_RXFIFO_FULL_INT_CLR|UART_RXFIFO_TOUT_INT_CLR);
   //uart_disable_rx_intr(2);  //Deshabilito las interrupciones
 
-
+*/
 
 
 
