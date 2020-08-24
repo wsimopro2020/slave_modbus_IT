@@ -37,7 +37,7 @@ void cargar_registro(struct MODBUS_SLAVE* slave,uint8_t direccion, uint16_t valo
     {
         printf("Error fuera de rango memoria\n");
     }
-    slave->MAPA_MEM.direcciones_ocupadas = slave->MAPA_MEM.direcciones_ocupadas + 1 ;
+ //   slave->MAPA_MEM.direcciones_ocupadas = slave->MAPA_MEM.direcciones_ocupadas + 1 ;
 }
 
 void inicializarREGISTROS(struct REGISTROS_MEMORIA* registros,uint16_t cant_elementos, uint16_t direccion_inicio)
@@ -100,30 +100,17 @@ void CRC16_2(uint8_t *buf, uint8_t len)
 
 void agregarCRC_BUFFER(struct BUFFER* buffer)
 {
-   
     agregarCRC(buffer->buffer,buffer->size);
    //Aumento en 2 el tamaño del buffer, para contener al CRC
-    printf("enviando respuesta\n");
-     
-   
+    printf("enviando respuesta\n");   
     uart_write_bytes(2,(char*)buffer->buffer, (uint8_t)((buffer->size)));
-     uart_flush(UART_NUM_2);
-
-
-  
-
-
-
-
-
-
-    
+    uart_flush(UART_NUM_2);    
 }
 
 
 void agregarCRC(uint8_t* out,uint8_t len)
 {
-   uint8_t l= (len-2);
+  uint8_t l= (len-2);
   uint16_t crc = 0xFFFF;
   for (int pos = 0; pos < l; pos++)
   {
@@ -138,10 +125,9 @@ void agregarCRC(uint8_t* out,uint8_t len)
     }
   }
   
-//Agrego el CRC AL FINAL
   out[l]=(uint8_t)crc;
   out[l+1]=(uint8_t)(crc >> 8);
-//  printf("calculadon crc..\n");
+
 
 }
 
@@ -185,34 +171,38 @@ void procesarRequest(struct BUFFER* request,struct MODBUS_SLAVE* slave)
     if(request->size != 0)   //si size es cero ignoramos request mandamos error
     {
         printf("Estamos procesando una request\n");
-        if(request->buffer[0]== slave->ID)
+        if((request->buffer[0])== (slave->ID))   //ID
         {
+            printf("funcion: %d\n",request->buffer[1]);
+            printf("ID DEL SLAVE %d\n",slave->ID);
          switch (request->buffer[1])   // Funciones soportadas
          {
          case 0x03:    //Funcion lectura de registros
             printf("La request es de funcion 3\n");
              procesarF3( request, &response, slave);
-             agregarCRC_BUFFER(&response);
-
+             
+              
+            
              break;
 
          case 0x10:   //Funcion de escritura de registros
-            /* code */
+            printf("la request es funcion 16\n");
+           procesarF16(request,&response,slave);
+
+           
             break;
          default:  //Cualquier otra funcion no soportada error
             
              break;
-         }   
+         }
+            agregarCRC_BUFFER(&response);
         }
         else
         {
+            printf("Error en la request ");
             //ignorar, no es peticion para este dispositivo;
         }
 
-        //RESPONDER
-        
-        //uart_read_bytes(2,(response.buffer),response.size,10);
-        
     }
     else
     {
@@ -245,10 +235,66 @@ struct REGISTROS_MEMORIA
 
 */
 
+//id | start addres | cantidad reg | bytecount | values
+void procesarF16(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave)
+{
+    
+    printf("cantidad de registros ha escribir\n");
+    //comprobar que el rango de memorias sea el correcto
+    uint16_t direccion_inicio =  ((uint16_t)(req->buffer[2])<<8) |((uint16_t) req->buffer[3]);
+    
+    uint16_t cantidad_memorias =  ((uint16_t)(req->buffer[4])<<8) |((uint16_t) req->buffer[5]);
+
+    printf("peticion: start addr: %d, cantidad:%d\n",direccion_inicio,cantidad_memorias);
+
+    uint16_t offset = direccion_inicio -((slave->MAPA_MEM).direccion_inicio);
+
+    printf("el offset es %d\n",offset);
+
+     if((((slave->MAPA_MEM).cant_elementos) - offset) >=   cantidad_memorias)  
+            {
+                    //PETICION CORRECTA, GESTIONAR
+                    response->buffer = (uint8_t*)malloc(8);  //5 + CRC
+                    response->size=8;
+                    response->buffer[0] = req->buffer[0];  //ID
+                    response->buffer[1] = req->buffer[1]; //FUNCION
+                    response->buffer[2] = req->buffer[2];
+                    response->buffer[3] = req->buffer[3];
+                    response->buffer[4] = req->buffer[4];
+                    response->buffer[5] = req->buffer[5];
+               
+                 for(uint8_t k=0, i=0 ; k<cantidad_memorias  ;i++  )   // a partir del 7 bit empiezas los values
+                 {
+                             // k es para el indice de registros uint16_t
+                  uint16_t  value = ((((u_int16_t)(req->buffer[7+i]))<<8) |((u_int16_t) (req->buffer[7+(i+1)])));
+                    printf("el value es %d\n",value);
+                    printf("la direccion es %d\n",(direccion_inicio+k)),
+                    cargar_registro(&slave,direccion_inicio+k, value);
+                    i++;
+                    k++;
+                 }
+
+            }
+            else
+            {
+                printf("erorr en la peticion 16\n");
+               getERROR_BUFFER(req,response,slave);
+            }
+
+       
+
+
+
+
+
+}
+
 void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave)
 {
 
-    uint16_t memorias[20]={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
+    
+
+
     response->size=3+((uint8_t)req->buffer[5])*2+2;  //el ultimo +2 es por el CRC
         response->buffer = (uint8_t*)malloc(response->size);
         response->buffer[0]=slave->ID ; //ID
@@ -270,21 +316,19 @@ void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE*
                //         printf("copiando memorias...\n");
                     response->buffer[j+i]=(uint8_t)(slave->MAPA_MEM.datos[offset+k]>>8);
                     response->buffer[j+(i+1)]=(uint8_t)(slave->MAPA_MEM.datos[offset+k]);
-                    //     response->buffer[j+i]=(uint8_t)(memorias[offset+k]>>8);
-                    //    response->buffer[j+(i+1)]=(uint8_t)(memorias[offset+k]);
                         k++;
                         i++;  //necesito que i avance 2 lugares
                 }
             }   
             else
             {
-              getERROR_BUFFER(response,slave);
+              getERROR_BUFFER(req,response,slave);
             }
             
         }
         else
         {
-             getERROR_BUFFER(response,slave);
+             getERROR_BUFFER(req,response,slave);
            //error memoria fuera de rango    (ejemplo: dir inicial: 4  , dir mem pedida 2---fallo )
         }
        
@@ -297,29 +341,29 @@ void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE*
 
 
 
-struct BUFFER getError(uint8_t funcion,uint8_t id)   //erro solo lleva id y codigo generico junto con crc
+void getError(uint8_t funcion,struct BUFFER* error_response,uint8_t id)   //erro solo lleva id y codigo generico junto con crc
 {
-    struct BUFFER error;
-    error.buffer = (uint8_t*)malloc(3);
-    error.buffer[0]=id;
-    error.size = 3;
+    
+    error_response->buffer = (uint8_t*)malloc(5) ;  //3 ERROR + 2 para CRC;
+    error_response->buffer[0]=id;
+    error_response->size = 5;
 
         switch (funcion)
         {
         case 0x03:    //funcion lectura de registros
-            error.buffer = (uint8_t*)malloc(3);
-            error.buffer[1]=0x83;  //codigo de error
-            error.buffer[2]=0x01;  // uno de las excepciones , valido 1,2,3 y 4
+          ;
+            error_response->buffer[1]=0x83;  //codigo de error
+            error_response->buffer[2]=0x01;  // uno de las excepciones , valido 1,2,3 y 4
             break;
         case 0x10: //Escribir multiples registros
-            error.buffer[1]=0x90 ; //codigo de error
-            error.buffer[2]=0x01 ; // uno de las excepciones , valido 1,2,3 y 4
+            error_response->buffer[1]=0x90 ; //codigo de error
+            error_response->buffer[2]=0x01 ; // uno de las excepciones , valido 1,2,3 y 4
             break;
 
         default:  //Escribir codigo de error de funcion indefinida
             break;
         }
-    return error;
+    
 }
 
 
@@ -328,10 +372,10 @@ struct BUFFER getError(uint8_t funcion,uint8_t id)   //erro solo lleva id y codi
 
 //deben reenviarse estos bytes con el correspondiente codigo de error
 
-void getERROR_BUFFER(struct BUFFER* buffer,struct MODBUS_SLAVE* slave)
+void getERROR_BUFFER(struct BUFFER* request,struct BUFFER* response,struct MODBUS_SLAVE* slave)
 
 {
-    getError(buffer->buffer,slave->ID);
+    getError(request->buffer[1],response,slave->ID);
 }
 
 /*

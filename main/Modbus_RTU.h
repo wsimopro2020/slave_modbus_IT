@@ -40,11 +40,12 @@ struct REGISTROS_MEMORIA
 
 static struct MODBUS_SLAVE
 {
+      uint8_t  ESTADO;
     uint8_t  ID;
     struct PORT_UART PORT;
 
     struct   REGISTROS_MEMORIA MAPA_MEM;
-    uint8_t  ESTADO;
+  
     QueueHandle_t request_Modbus; 
     
 
@@ -65,11 +66,11 @@ void CRC16_2(uint8_t *buf, uint8_t len);
 void agregarCRC_BUFFER(struct BUFFER* buffer);
 bool comprobarCRC(uint8_t* out,uint8_t len);
 void agregarCRC(uint8_t* out,uint8_t len);
-struct BUFFER getError(uint8_t funcion,uint8_t id);   //erro solo lleva id y codigo generico junto con crc
-void getERROR_BUFFER(struct BUFFER* buffer,struct MODBUS_SLAVE* slave);
-
+void getError(uint8_t funcion,struct BUFFER* error_response,uint8_t id) ; //erro solo lleva id y codigo generico junto con crc
+void getERROR_BUFFER(struct BUFFER* request,struct BUFFER* response,struct MODBUS_SLAVE* slave);
+void procesarF16(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave);
 void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave);
-
+void cargar_registro(struct MODBUS_SLAVE* slave,uint8_t direccion, uint16_t valor);
 /*
 Recibo la request y empiezo a desmenuzar por partes
 
