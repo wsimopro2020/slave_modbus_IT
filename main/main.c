@@ -14,26 +14,72 @@ UART Interrupt Example
 
 #include "Modbus_RTU.c"
 
+
+#include "esp32_lcd.c"
+
+
+#define LCD_ADDR 0x27
+#define SDA_PIN  21
+#define SCL_PIN  22
+#define LCD_COLS 16
+#define LCD_ROWS 2
+
+
+int a[3][4] = {  
+   {0, 1, 2, 3} ,   /*  initializers for row indexed by 0 */
+   {4, 5, 6, 7} ,   /*  initializers for row indexed by 1 */
+   {8, 9, 10, 11}   /*  initializers for row indexed by 2 */
+};
+
+
+uint8_t lineas_lcd=16;
+
+char MENSAJES_PREDEF[5][17]=
+ {
+   {'C','O','N','E','X','I','O','N',' ','E','X','I','T','O','S','A',0},
+
+    {'C','O','N','E','X','I','O','N',' ','F','A','L','L','O',' ',' ',0},
+
+    {'L','E','Y','E','N','D','O',' ','R','E','G','I','S','T','R','O',0},
+
+    {'E','S','C','R','I','B','I','E','N','D','O',' ','R','E','G','S',0},
+
+    {'C','O','N','E','X','I','O','N',' ','E','X','I','T','O','S','A',0}
+ 
+
+ };
+
+
+
+
+
 /*
 Definiciones 
 */
 static const char *TAG = "uart_events";
 
-
+void LCD_DemoTask(void* param);
 void procesar_request(void* param);
 void uart_task(void *param);
 void blink_task(void *pvParameter);
 struct MODBUS_SLAVE slave;
 
+
 void app_main(void)
 {
+
+   LCD_init(LCD_ADDR, SDA_PIN, SCL_PIN, LCD_COLS, LCD_ROWS);
+   printf("%s\n",MENSAJES_PREDEF[0]);
+  
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
     }
-   
-   
+  
+  //  xTaskCreate(LCD_DemoTask, "Demo Task", 2048, NULL, 5, NULL);
+     xTaskCreatePinnedToCore(LCD_DemoTask,"LCD",2048,NULL,5,NULL,0);
       //Iniciando un slave modbus
     xTaskCreatePinnedToCore(uart_task,"uart",20*1024,NULL,2,NULL,0);
     xTaskCreatePinnedToCore(blink_task,"blink",4*1024,NULL,4,NULL,1);
@@ -49,14 +95,31 @@ void app_main(void)
 
 
 
+
+void LCD_DemoTask(void* param)
+{
+    
+     LCD_clearScreen();
+    while (true) {
+      
+        LCD_setCursor(0, 0);
+       
+        LCD_writeStr("VEC ELECTRONIC");
+        LCD_setCursor(0, 1);
+        LCD_writeStr("Proyecto Modbus");
+        
+        vTaskDelay(1500 / portTICK_RATE_MS);
+
+       
+    }
+}
+
+
+
 void uart_task(void *param)
 {
-    inicializarMODBUS_SLAVE(&slave,1, 2, 57600);   //id ,uart baudios
-    //cargar_registro(&slave,0, 4);
-    //cargar_registro(&slave,1, 3);
-    //cargar_registro(&slave,2, 8);
-  
-     printf("Se inicializo el micro \n");
+    inicializarMODBUS_SLAVE(&slave,1, 2, 57600);   //id ,uart baudios  
+    printf("Se inicializo el micro \n");
   
    ;
 while(1)
