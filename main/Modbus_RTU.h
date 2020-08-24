@@ -70,7 +70,7 @@ void getError(uint8_t funcion,struct BUFFER* error_response,uint8_t id) ; //erro
 void getERROR_BUFFER(struct BUFFER* request,struct BUFFER* response,struct MODBUS_SLAVE* slave);
 void procesarF16(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave);
 void procesarF3(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE* slave);
-void cargar_registro(struct MODBUS_SLAVE* slave,uint8_t direccion, uint16_t valor);
+void cargar_registro(struct MODBUS_SLAVE* slave,uint16_t direccion, uint16_t valor);
 /*
 Recibo la request y empiezo a desmenuzar por partes
 

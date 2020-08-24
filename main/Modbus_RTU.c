@@ -26,17 +26,24 @@ struct BUFFER response(struct BUFFER* request, struct MODBUS_SLAVE* slave)
 
 
 
-void cargar_registro(struct MODBUS_SLAVE* slave,uint8_t direccion, uint16_t valor)
+void cargar_registro(struct MODBUS_SLAVE* slave,uint16_t direccion, uint16_t valor)
 {
     //La direccion esta dentro del rango
-    if(direccion >=(slave->MAPA_MEM.direccion_inicio)  && (direccion <= ((slave->MAPA_MEM.direccion_inicio)+(slave->MAPA_MEM.cant_elementos))))
+     uint8_t id= slave->ID;
+
+    if(direccion >=slave->MAPA_MEM.direccion_inicio  )   //
     {
-        slave->MAPA_MEM.datos[direccion-(slave->MAPA_MEM.direccion_inicio)]=valor;
+       if(direccion<= slave->MAPA_MEM.cant_elementos)
+       {
+            slave->MAPA_MEM.datos[direccion]=valor;
+       }
+       
     }
     else
     {
         printf("Error fuera de rango memoria\n");
     }
+    
  //   slave->MAPA_MEM.direcciones_ocupadas = slave->MAPA_MEM.direcciones_ocupadas + 1 ;
 }
 
@@ -262,17 +269,20 @@ void procesarF16(struct BUFFER* req, struct BUFFER* response,struct MODBUS_SLAVE
                     response->buffer[3] = req->buffer[3];
                     response->buffer[4] = req->buffer[4];
                     response->buffer[5] = req->buffer[5];
-               
+               /*
+               En la seccion de abajo esta el error
+               */
                  for(uint8_t k=0, i=0 ; k<cantidad_memorias  ;i++  )   // a partir del 7 bit empiezas los values
                  {
                              // k es para el indice de registros uint16_t
                   uint16_t  value = ((((u_int16_t)(req->buffer[7+i]))<<8) |((u_int16_t) (req->buffer[7+(i+1)])));
                     printf("el value es %d\n",value);
                     printf("la direccion es %d\n",(direccion_inicio+k)),
-                    cargar_registro(&slave,direccion_inicio+k, value);
+                   cargar_registro(slave,direccion_inicio+k, value);
                     i++;
                     k++;
                  }
+                 
 
             }
             else
